@@ -1,0 +1,9 @@
+Student:
+ id     | integer                  | not null
+ name   | character varying(100)   | not null
+ gpa    | numeric(10,2)            |
+ birth  | timestamp with time zone |
+
+Course:
+ id     | integer                  | not null
+ name   | character varying(100)   | not null
