@@ -11,19 +11,22 @@ def create_db(database_name=DATABASE, user_name=USER):
     with psycopg2.connect('dbname=%s user=%s' % (database_name, user_name)) \
             as conn:
         with conn.cursor() as curs:
-            curs.execute("""CREATE TABLE student (
+            curs.execute("""
+                CREATE TABLE IF NOT EXISTS student (
                 id serial PRIMARY KEY NOT NULL,
                 name varchar(100) NOT NULL,
                 gpa numeric(10,2),
                 birth timestamp with time zone);
                 """)
-            curs.execute("""CREATE TABLE course (
+            curs.execute("""
+                CREATE TABLE IF NOT EXISTS course (
                 id serial PRIMARY KEY NOT NULL,
                 name varchar(100) NOT NULL);
                 """)
-            curs.execute("""CREATE TABLE student_course (
+            curs.execute("""
+                CREATE TABLE IF NOT EXISTS student_course (
                 id serial PRIMARY KEY NOT NULL,
-                student_id INTEGER REFERENCES student(id),
+                student_id INTEGER REFERENCES student(id) ON DELETE CASCADE,
                 course_id INTEGER REFERENCES course(id));
                 """)
 
@@ -44,19 +47,22 @@ def get_students(course_id):
 # создает студентов и
 # записывает их на курс
 def add_students(course_id, students):
-    for student in students:
-        columns = student.keys()
-        values = [student[column] for column in columns]
-        with psycopg2.connect('dbname=%s user=%s' % (DATABASE, USER)) \
-                as conn:
-            with conn.cursor() as curs:
-                insert_statement = 'insert into student (%s) values %s returning id'
-                curs.execute(curs.mogrify(insert_statement,
-                                          (AsIs(','.join(columns)),
-                                           tuple(values))))
-                st_id = curs.fetchone()[0]
-                curs.execute("insert into student_course (student_id, course_id) values (%s, %s)",
-                             (st_id, course_id))
+    with psycopg2.connect('dbname=%s user=%s' % (DATABASE, USER)) \
+            as conn:
+        with conn.cursor() as curs:
+            curs.execute("select * from course where course.id = %s",
+                         (course_id,))
+            contains_id = curs.fetchone()
+    if contains_id is not None:
+        for student in students:
+            st_id = add_student(student)
+            with psycopg2.connect('dbname=%s user=%s' % (DATABASE, USER)) \
+                    as conn:
+                with conn.cursor() as curs:
+                    curs.execute("insert into student_course (student_id, course_id) values (%s, %s)",
+                                 (st_id, course_id))
+    else:
+        print('Курс с таким id не существует')
 
 
 # просто создает студента
@@ -66,10 +72,12 @@ def add_student(student):
     with psycopg2.connect('dbname=%s user=%s' % (DATABASE, USER)) \
             as conn:
         with conn.cursor() as curs:
-            insert_statement = 'insert into student (%s) values %s'
+            insert_statement = 'insert into student (%s) values %s returning id'
             curs.execute(curs.mogrify(insert_statement,
                                       (AsIs(','.join(columns)),
                                        tuple(values))))
+            st_id = curs.fetchone()[0]
+            return st_id
 
 
 def add_course(course):
@@ -86,8 +94,8 @@ def get_student(student_id):
         with conn.cursor() as curs:
             curs.execute("select * from student where student.id = %s",
                          (student_id,))
-            selected_student = curs.fetchall()
-            return selected_student[0][1]
+            selected_student = curs.fetchone()
+            return selected_student[1]
 
 
 if __name__ == '__main__':
