@@ -27,7 +27,7 @@ def create_db(database_name=DATABASE, user_name=USER):
                 CREATE TABLE IF NOT EXISTS student_course (
                 id serial PRIMARY KEY NOT NULL,
                 student_id INTEGER REFERENCES student(id) ON DELETE CASCADE,
-                course_id INTEGER REFERENCES course(id));
+                course_id INTEGER REFERENCES course(id) ON DELETE CASCADE);
                 """)
 
 
@@ -54,15 +54,13 @@ def add_students(course_id, students):
                          (course_id,))
             contains_id = curs.fetchone()
     if contains_id is not None:
-        for student in students:
-            st_id = add_student(student)
-            with psycopg2.connect('dbname=%s user=%s' % (DATABASE, USER)) \
-                    as conn:
+        with psycopg2.connect('dbname=%s user=%s' % (DATABASE, USER)) \
+                as conn:
+            for student in students:
+                st_id = add_student(student)
                 with conn.cursor() as curs:
                     curs.execute("insert into student_course (student_id, course_id) values (%s, %s)",
                                  (st_id, course_id))
-    else:
-        print('Курс с таким id не существует')
 
 
 # просто создает студента
@@ -95,7 +93,7 @@ def get_student(student_id):
             curs.execute("select * from student where student.id = %s",
                          (student_id,))
             selected_student = curs.fetchone()
-            return selected_student[1]
+            return selected_student
 
 
 if __name__ == '__main__':
@@ -113,8 +111,8 @@ if __name__ == '__main__':
     # }
     # add_student(student_1)
     # add_student(student_2)
-    # students = [{'name': 'Andrey', 'gpa': 6.5, 'birth': '1779-07-01'},
-    #             {'name': 'Anton', 'gpa': 2.5, 'birth': '1989-07-04'}]
-    # add_students(1, students)
+    students = [{'name': 'Andrey', 'gpa': 6.5, 'birth': '1779-07-01'},
+                {'name': 'Anton', 'gpa': 2.5, 'birth': '1989-07-04'}]
+    add_students(1, students)
     # print(get_student(1))
     # print(get_students(1))
